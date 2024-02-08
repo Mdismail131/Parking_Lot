@@ -1,12 +1,10 @@
 package services;
 
 import exceptions.GateNotFoundException;
-import models.Gate;
-import models.Ticket;
-import models.Vehicle;
-import models.VehicleType;
-import repositories.GateRepository;
-import repositories.VehicleRepository;
+import models.*;
+import repositories.*;
+import strategies.RandomSpotAssignmentStrategy;
+import strategies.SpotAssignmentStrategy;
 
 import java.time.Instant;
 import java.util.Date;
@@ -16,10 +14,18 @@ public class TicketService {
 
     private final GateRepository gateRepository;
     private final VehicleRepository vehicleRepository;
+    private final SpotAssignmentStrategy spotAssignmentStrategy;
+    private final TicketRepository ticketRepository;
 
-    public TicketService(GateRepository gateRepository, VehicleRepository vehicleRepository) {
+    private final ParkingSpotRepository parkingSpotRepository;
+
+
+    public TicketService(GateRepository gateRepository, VehicleRepository vehicleRepository, SpotAssignmentStrategy spotAssignmentStrategy, TicketRepository ticketRepository, ParkingSpotRepository parkingSpotRepository) {
         this.gateRepository = gateRepository;
         this.vehicleRepository = vehicleRepository;
+        this.ticketRepository = ticketRepository;
+        this.spotAssignmentStrategy = spotAssignmentStrategy;
+        this.parkingSpotRepository = parkingSpotRepository;
     }
 
     public Ticket issueTicket(String vehicleNumber, VehicleType vehicleType, Long gateId) throws GateNotFoundException {
@@ -47,6 +53,16 @@ public class TicketService {
         ticket.setGeneratedBy(gate.getOperator());
         ticket.setNumber(String.valueOf(Instant.now().getEpochSecond()));
 //        ticket.setParkingSpot();
-        return null;
+
+        ParkingSpot parkingSpot = spotAssignmentStrategy.getSpot(1L, gate, vehicleType);
+
+        parkingSpot.setVehicle(savedVehicle);
+        parkingSpot.setParkingSpotStatus(ParkingSpotStatus.OCCUPIED);
+
+
+        ticket.setParkingSpot(parkingSpot);
+        ticketRepository.save(ticket);
+
+        return ticket;
     }
 }
